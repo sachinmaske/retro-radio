@@ -24,3 +24,4 @@ def set_volume(volume):
 
 def status():
     subprocess.run(["mpc"])
+    
