@@ -21,6 +21,7 @@ def _normalize(raw):
         "country": raw.get("country") or "",
         "codec": raw.get("codec") or "",
         "bitrate": raw.get("bitrate") or 0,
+        "favicon": raw.get("favicon") or "",
     }
 
 

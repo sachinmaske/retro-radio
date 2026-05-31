@@ -236,35 +236,48 @@ python service_mode.py
 The physical display only runs with **`service_mode.py`** (not `app.py` or `web.py`).
 
 ```bash
-cp radio.env.example radio.env   # set RADIO_DISPLAY_ENABLED=1
+cp radio.env.example radio.env
 pip install -r requirements-pi.txt
 ./start_radio.sh
 ```
 
-Or manually:
+**SPI TFT (ST7735 128×160)** — typical 1.8" Pi hat:
 
 ```bash
-export RADIO_DISPLAY_ENABLED=1
-export RADIO_DISPLAY_TYPE=ssd1306    # I2C OLED (most common)
-# export RADIO_DISPLAY_TYPE=st7735   # SPI TFT hat
-export DISPLAY_I2C_ADDRESS=0x3C
-python service_mode.py
+RADIO_DISPLAY_ENABLED=1
+RADIO_DISPLAY_TYPE=st7735
+DISPLAY_BGR=1
+DISPLAY_WIDTH=128
+DISPLAY_HEIGHT=160
+```
+
+**I2C OLED (SSD1306 128×64)**:
+
+```bash
+RADIO_DISPLAY_TYPE=ssd1306
+DISPLAY_I2C_ADDRESS=0x3C
 ```
 
 **Test the display:**
 
 ```bash
 export RADIO_DISPLAY_ENABLED=1
+export RADIO_DISPLAY_TYPE=st7735
+export DISPLAY_BGR=1
 python -m radio.pi
 ```
 
-**If the OLED stays blank:**
+You should see a bordered **“Retro Radio / Display OK”** screen, then sample text.
 
-1. Enable I2C: `sudo raspi-config` → Interface Options → I2C
-2. Install tools: `sudo apt install i2c-tools`
-3. Scan bus: `i2cdetect -y 1` — you should see `3c` (try `0x3D` if not)
-4. Add user to i2c group: `sudo usermod -aG i2c $USER` then log out/in
-5. Confirm `requirements-pi.txt` is installed in your venv
+**If the TFT lights up but text is blank:**
+
+1. Set `RADIO_DISPLAY_TYPE=st7735` (not `ssd1306` if you have a SPI TFT).
+2. Set `DISPLAY_BGR=1` (most boards need this).
+3. Try `DISPLAY_ROTATE=90` or `180` if text is off-screen.
+4. Install fonts: `sudo apt install fonts-dejavu-core`
+5. Or set `DISPLAY_FONT=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf`
+
+**If the OLED stays blank:** enable I2C (`raspi-config`), run `i2cdetect -y 1` (expect `3c`).
 
 Without hardware or on failure, output goes to the console as `[display] ...` lines.
 
@@ -290,15 +303,18 @@ WantedBy=multi-user.target
 
 ## Project layout
 
-| Module | Role |
-|--------|------|
-| `radio/service.py` | Single `RadioService` + `get_service()` |
-| `radio/player.py` | mpc wrapper + playback state |
-| `radio/stations.py` | Radio Browser fetch + cache |
-| `radio/storage.py` | Config + favorites persistence |
-| `radio/pi.py` | Optional GPIO + OLED integration |
-| `web.py` | Flask app + REST API |
-| `templates/`, `static/` | Web UI |
+| Layer | Path | Role |
+|-------|------|------|
+| Core | `radio/service.py` | `RadioService` — all playback logic |
+| MPD | `radio/player.py` | mpc wrapper |
+| Display | `radio/display.py` | TFT/OLED framebuffer |
+| Appliance | `radio/appliance.py` | Pi boot flow (Phase 8) |
+| GPIO | `radio/pi.py` | Physical buttons |
+| Web UI | `web_ui/` | Control UI + `/api/*` (separate layer) |
+| Entry | `service_mode.py` | Run appliance on Pi |
+| Entry | `web.py` | Web-only dev server |
+
+See [IMPLEMENTATION.md](IMPLEMENTATION.md) for the full plan mapping.
 
 ## Security
 

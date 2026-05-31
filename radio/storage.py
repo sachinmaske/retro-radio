@@ -10,6 +10,8 @@ DEFAULT_CONFIG = {
     "station_url": "",
     "station_uuid": "",
     "volume": 70,
+    "browse_mode": "all",
+    "sleep_until": 0,
 }
 
 # Common Radio Browser language tags; any string works via set_language().
@@ -64,6 +66,8 @@ def add_favorite(language, station):
     entry = {"name": station["name"], "url": station["url"]}
     if station.get("stationuuid"):
         entry["stationuuid"] = station["stationuuid"]
+    if station.get("favicon"):
+        entry["favicon"] = station["favicon"]
     data[language].append(entry)
     save_favorites(data)
     return True

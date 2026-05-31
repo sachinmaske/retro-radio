@@ -1,3 +1,5 @@
+import time
+
 from radio import player
 from radio.stations import get_stations
 from radio.storage import (
@@ -27,8 +29,25 @@ class RadioService:
         self._stations = []
         self._stations_language = ""
         self._index = 0
+        self._display = None
+        self._browse_mode = self.config.get("browse_mode", "all")
         self.refresh_stations()
         self._resolve_current_index()
+
+    @property
+    def display(self):
+        return self._display
+
+    def set_display(self, display):
+        self._display = display
+
+    def _refresh_display(self):
+        if not self._display:
+            return
+        try:
+            self._display.show_status(self.get_status())
+        except Exception as exc:
+            print(f"Display refresh: {exc}")
 
     def refresh_stations(self, force=False, language=None):
         self.config = load_config()
@@ -91,18 +110,75 @@ class RadioService:
             print(f"\n{'=' * 40}\nPlaying: {station['name']}\n{'=' * 40}\n")
         player.play(station["url"])
         self._persist_station()
+        self._refresh_display()
+
+    def get_browse_mode(self):
+        return self.config.get("browse_mode", "all")
+
+    def set_browse_mode(self, mode):
+        mode = (mode or "all").strip().lower()
+        if mode not in ("all", "favorites"):
+            raise ValueError("mode must be 'all' or 'favorites'")
+        self._browse_mode = mode
+        self.config = load_config()
+        self.config["browse_mode"] = mode
+        save_config(self.config)
+        self._refresh_display()
+
+    def list_browse_stations(self, mode=None):
+        mode = (mode or self._browse_mode).lower()
+        if mode == "favorites":
+            favs = self.list_favorites()
+            return favs if favs else []
+        return list(self._stations)
+
+    def _playlist(self):
+        if self._browse_mode == "favorites":
+            favs = self.list_favorites()
+            return favs if favs else self._stations
+        return self._stations
+
+    def _step_playlist(self, delta):
+        playlist = self._playlist()
+        if not playlist:
+            return
+        current_url = self.current_station()["url"]
+        idx = 0
+        for i, station in enumerate(playlist):
+            if station["url"] == current_url:
+                idx = i
+                break
+        target = playlist[(idx + delta) % len(playlist)]
+        for i, station in enumerate(self._stations):
+            if station["url"] == target["url"]:
+                self._index = i
+                self.play_current()
+                return
+        self.play_favorite(target["url"])
 
     def next(self):
         self._reload_stations_if_needed()
+        if self._browse_mode == "favorites":
+            self._step_playlist(1)
+            return
         self._index = (self._index + 1) % len(self._stations)
         self._persist_station()
         self.play_current()
 
     def previous(self):
         self._reload_stations_if_needed()
+        if self._browse_mode == "favorites":
+            self._step_playlist(-1)
+            return
         self._index = (self._index - 1) % len(self._stations)
         self._persist_station()
         self.play_current()
+
+    def stop(self):
+        self.stop_playback()
+
+    def toggle(self):
+        self.toggle_playback()
 
     def apply_saved_volume(self):
         player.set_volume(self.config["volume"])
@@ -117,6 +193,7 @@ class RadioService:
             delta = step if step > 0 else step
             self.config["volume"] = clamp_volume(self.config["volume"] + delta)
         save_config(self.config)
+        self._refresh_display()
         return self.config["volume"]
 
     def volume_up(self, step=VOLUME_STEP):
@@ -127,9 +204,11 @@ class RadioService:
 
     def toggle_playback(self):
         player.toggle()
+        self._refresh_display()
 
     def stop_playback(self):
         player.stop()
+        self._refresh_display()
 
     def print_status(self):
         print(f"\nCurrent station:\n{self.current_station()['name']}")
@@ -183,11 +262,46 @@ class RadioService:
         self._resolve_current_index()
         return self.current_station()
 
+    def set_sleep_timer(self, minutes):
+        minutes = int(minutes)
+        self.config = load_config()
+        if minutes <= 0:
+            self.config["sleep_until"] = 0
+        else:
+            self.config["sleep_until"] = time.time() + (minutes * 60)
+        save_config(self.config)
+        return self.get_sleep_timer()
+
+    def clear_sleep_timer(self):
+        return self.set_sleep_timer(0)
+
+    def get_sleep_timer(self):
+        self.config = load_config()
+        until = float(self.config.get("sleep_until") or 0)
+        remaining = max(0, int(until - time.time())) if until else 0
+        return {
+            "active": until > time.time(),
+            "sleep_until": until,
+            "remaining_seconds": remaining,
+        }
+
+    def check_sleep_timer(self):
+        self.config = load_config()
+        until = float(self.config.get("sleep_until") or 0)
+        if until and time.time() >= until:
+            self.config["sleep_until"] = 0
+            save_config(self.config)
+            self.stop_playback()
+            return True
+        return False
+
     def get_status(self):
+        self.check_sleep_timer()
         self._reload_stations_if_needed()
         station = self.current_station()
         playback = player.get_playback_state()
         state = playback.get("state") or "stop"
+        playlist = self._playlist()
         return {
             "station": station,
             "stream": {
@@ -198,9 +312,12 @@ class RadioService:
             "volume": self.config["volume"],
             "mpc_volume": playback.get("volume"),
             "state": state,
+            "playing": state == "play",
             "language": self._stations_language,
+            "browse_mode": self._browse_mode,
             "index": self._index,
-            "station_count": len(self._stations),
+            "station_count": len(playlist),
+            "sleep": self.get_sleep_timer(),
         }
 
     def get_metadata(self):
