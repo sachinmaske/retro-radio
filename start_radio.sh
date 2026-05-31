@@ -1,4 +1,4 @@
 #!/bin/bash
 cd /home/radio/retro-radio
 source venv/bin/activate
-python app.py
+python service_mode.py
