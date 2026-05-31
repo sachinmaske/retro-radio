@@ -1,6 +1,6 @@
 {
-  "language": "marathi",
-  "station_url": "https://air.pc.cdn.bitgravity.com/air/live/pbaudio063/playlist.m3u8",
-  "station_uuid": "1b118e06-bec2-404e-88e7-a5927cb6a4fc",
-  "volume": 70
+  "language": "hindi",
+  "station_url": "https://feeds.intoday.in/aajtak/api/master.m3u8",
+  "station_uuid": "35753750-c632-4790-a42b-f591b254dd3f",
+  "volume": 30
 }

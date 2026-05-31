@@ -41,6 +41,97 @@ Edit `config.json`:
 
 On first run, the current station is resolved from `station_uuid`, then `station_url`, then legacy `station_index`, then defaults to the first cached station.
 
+## Local testing (Mac / Linux)
+
+GPIO and OLED are Pi-only. On a laptop, disable them and use MPD for audio.
+
+### 1. Install MPD + mpc
+
+**macOS (Homebrew):**
+
+```bash
+brew install mpd mpc
+./scripts/setup_mpd_mac.sh   # creates ~/.mpd/mpd.conf and starts mpd
+mpc status                   # should connect (not "Connection refused")
+```
+
+If you see **Connection refused**, MPD is not running. Run the setup script again or:
+
+```bash
+mpd
+mpc status
+```
+
+Auto-start on login (after setup):
+
+```bash
+brew services start mpd
+```
+
+**Debian / Ubuntu:**
+
+```bash
+sudo apt install mpd mpc
+sudo systemctl start mpd
+```
+
+### 2. Python environment
+
+```bash
+cd retro-radio
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 3. Local `radio.env` (no Pi hardware)
+
+```bash
+cp radio.env.example radio.env
+```
+
+Ensure these are **off** on a Mac:
+
+```bash
+RADIO_WEB_ENABLED=1
+RADIO_GPIO_ENABLED=0
+RADIO_DISPLAY_ENABLED=0
+```
+
+### 4. Run tests
+
+**Full stack (same as Pi — radio + web):**
+
+```bash
+python service_mode.py
+# open http://127.0.0.1:5000/
+```
+
+**Web + API only:**
+
+```bash
+python web.py
+curl http://127.0.0.1:5000/api/status
+```
+
+**CLI:**
+
+```bash
+python app.py
+```
+
+**Station list / config (no audio):**
+
+```bash
+python -c "from radio.stations import get_stations; print(len(get_stations('marathi')), 'stations')"
+```
+
+**Display self-test (console fallback on Mac):**
+
+```bash
+RADIO_DISPLAY_ENABLED=1 python -m radio.pi
+```
+
 ## Change language
 
 **Config file** — edit `config.json` and restart:

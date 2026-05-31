@@ -5,8 +5,6 @@
 REPO_DIR="${RETRO_RADIO_DIR:-/home/radio/retro-radio}"
 VENV_NAME="${RETRO_RADIO_VENV:-.venv}"
 
-cd "$REPO_DIR" || exit 1
-
 if [ -f radio.env ]; then
   set -a
   # shellcheck source=/dev/null

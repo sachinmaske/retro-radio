@@ -26,7 +26,13 @@ def setup_gpio(service):
     if not _enabled("RADIO_GPIO_ENABLED"):
         return []
 
-    from gpiozero import Button
+    try:
+        from gpiozero import Button
+    except ImportError as exc:
+        print(f"WARNING: GPIO unavailable ({exc})")
+        print("  pip install -r requirements-pi.txt")
+        print("  Or disable buttons: RADIO_GPIO_ENABLED=0 in radio.env")
+        return []
 
     buttons = []
     mapping = [

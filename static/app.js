@@ -7,7 +7,12 @@ const els = {
   codec: document.getElementById("codec"),
   stationIndex: document.getElementById("station-index"),
   favoritesList: document.getElementById("favorites-list"),
+  languageSelect: document.getElementById("language-select"),
+  languageStatus: document.getElementById("language-status"),
 };
+
+let activeLanguage = null;
+let languageBusy = false;
 
 async function api(path, options = {}) {
   const res = await fetch(path, {
@@ -15,7 +20,8 @@ async function api(path, options = {}) {
     ...options,
   });
   if (!res.ok) {
-    throw new Error(`${path} failed: ${res.status}`);
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `${path} failed: ${res.status}`);
   }
   return res.json();
 }
@@ -38,7 +44,7 @@ function renderStatus(data) {
 
   els.stationName.textContent = station.name || "—";
   const meta = [stream.artist, stream.title].filter(Boolean).join(" — ");
-  els.streamMeta.textContent = meta || station.tags || "";
+  els.streamMeta.textContent = meta || "";
   setBadge(data.state || "stop");
 
   const vol = data.mpc_volume ?? data.volume;
@@ -51,6 +57,25 @@ function renderStatus(data) {
     data.station_count != null
       ? `${(data.index ?? 0) + 1} / ${data.station_count}`
       : "—";
+
+  if (data.language) {
+    activeLanguage = data.language;
+    syncLanguageSelect(data.language);
+    if (!languageBusy) {
+      els.languageStatus.textContent = `Active: ${data.language}`;
+      els.languageStatus.classList.remove("language__status--busy");
+    }
+  }
+}
+
+function syncLanguageSelect(language) {
+  const select = els.languageSelect;
+  if (languageBusy || document.activeElement === select) {
+    return;
+  }
+  if ([...select.options].some((o) => o.value === language)) {
+    select.value = language;
+  }
 }
 
 function renderFavorites(favorites) {
@@ -100,12 +125,12 @@ function renderFavorites(favorites) {
   }
 }
 
-async function loadLanguages(current) {
+async function initLanguages() {
   const data = await api("/api/languages");
-  const select = document.getElementById("language-select");
+  const select = els.languageSelect;
   select.innerHTML = "";
-  const langs = data.languages || [];
-  const cur = current || data.current;
+  const langs = [...(data.languages || [])];
+  const cur = data.current || activeLanguage;
   if (cur && !langs.includes(cur)) {
     langs.unshift(cur);
   }
@@ -113,10 +138,42 @@ async function loadLanguages(current) {
     const opt = document.createElement("option");
     opt.value = lang;
     opt.textContent = lang;
-    if (lang === cur) {
-      opt.selected = true;
-    }
     select.appendChild(opt);
+  }
+  if (cur) {
+    select.value = cur;
+    activeLanguage = cur;
+  }
+}
+
+async function applyLanguage(language) {
+  if (!language || language === activeLanguage) {
+    return;
+  }
+
+  languageBusy = true;
+  els.languageSelect.disabled = true;
+  els.languageStatus.textContent = `Switching to ${language}…`;
+  els.languageStatus.classList.add("language__status--busy");
+
+  try {
+    const status = await api("/api/language", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ language }),
+    });
+    activeLanguage = status.language;
+    renderStatus(status);
+    const favs = await api("/api/favorites");
+    renderFavorites(favs.favorites || []);
+    els.languageStatus.textContent = `Active: ${status.language}`;
+  } catch (err) {
+    els.languageStatus.textContent = err.message;
+    syncLanguageSelect(activeLanguage);
+  } finally {
+    languageBusy = false;
+    els.languageSelect.disabled = false;
+    els.languageStatus.classList.remove("language__status--busy");
   }
 }
 
@@ -127,8 +184,11 @@ async function refresh() {
   ]);
   renderStatus(status);
   renderFavorites(favs.favorites || []);
-  await loadLanguages(status.language);
 }
+
+els.languageSelect.addEventListener("change", () => {
+  applyLanguage(els.languageSelect.value);
+});
 
 document.getElementById("btn-prev").addEventListener("click", async () => {
   await api("/api/prev", { method: "POST" });
@@ -160,15 +220,5 @@ document.getElementById("btn-fav-add").addEventListener("click", async () => {
   await refresh();
 });
 
-document.getElementById("btn-language").addEventListener("click", async () => {
-  const language = document.getElementById("language-select").value;
-  await api("/api/language", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ language }),
-  });
-  await refresh();
-});
-
-refresh();
-setInterval(refresh, 5000);
+initLanguages().then(refresh);
+setInterval(refresh, 8000);

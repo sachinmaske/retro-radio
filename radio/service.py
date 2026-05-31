@@ -25,18 +25,33 @@ class RadioService:
     def __init__(self):
         self.config = load_config()
         self._stations = []
+        self._stations_language = ""
         self._index = 0
         self.refresh_stations()
         self._resolve_current_index()
 
-    def refresh_stations(self, force=False):
-        self._stations = get_stations(self.config["language"], force_refresh=force)
+    def refresh_stations(self, force=False, language=None):
+        self.config = load_config()
+        lang = (language or self.config["language"]).strip().lower()
+        self.config["language"] = lang
+
+        self._stations = get_stations(lang, force_refresh=force)
+        self._stations_language = lang
+
         if not self._stations:
-            raise RuntimeError(
-                f"No stations for language '{self.config['language']}'"
-            )
+            raise RuntimeError(f"No stations for language '{lang}'")
+
+    def _reload_stations_if_needed(self):
+        """Keep in-memory list aligned with config.json (language may change via web)."""
+        lang = load_config()["language"].strip().lower()
+        if lang == self._stations_language and self._stations:
+            return
+
+        self.refresh_stations(force=True, language=lang)
+        self._resolve_current_index()
 
     def _resolve_current_index(self):
+        self.config = load_config()
         uuid = self.config.get("station_uuid") or ""
         url = self.config.get("station_url") or ""
 
@@ -60,6 +75,8 @@ class RadioService:
 
     def _persist_station(self):
         s = self.current_station()
+        self.config = load_config()
+        self.config["language"] = self._stations_language
         self.config["station_url"] = s["url"]
         self.config["station_uuid"] = s.get("stationuuid") or ""
         self.config.pop("station_index", None)
@@ -76,11 +93,13 @@ class RadioService:
         self._persist_station()
 
     def next(self):
+        self._reload_stations_if_needed()
         self._index = (self._index + 1) % len(self._stations)
         self._persist_station()
         self.play_current()
 
     def previous(self):
+        self._reload_stations_if_needed()
         self._index = (self._index - 1) % len(self._stations)
         self._persist_station()
         self.play_current()
@@ -91,6 +110,7 @@ class RadioService:
     def _sync_volume(self, step):
         player.volume_up(step) if step > 0 else player.volume_down(-step)
         reported = player.get_playback_state().get("volume")
+        self.config = load_config()
         if reported is not None:
             self.config["volume"] = clamp_volume(reported)
         else:
@@ -116,26 +136,30 @@ class RadioService:
         player.print_status()
 
     def add_current_favorite(self):
-        add_favorite(self.config["language"], self.current_station())
+        add_favorite(self._stations_language, self.current_station())
         return self.current_station()
 
     def list_favorites(self):
-        return load_favorites().get(self.config["language"], [])
+        lang = self._stations_language or self.config["language"]
+        return load_favorites().get(lang, [])
 
     def remove_favorite_by_url(self, url):
-        return remove_favorite(self.config["language"], url)
+        lang = self._stations_language or self.config["language"]
+        return remove_favorite(lang, url)
 
     def set_language(self, language):
         language = (language or "").strip().lower()
         if not language:
             raise ValueError("language is required")
 
+        self.config = load_config()
         self.config["language"] = language
         self.config["station_url"] = ""
         self.config["station_uuid"] = ""
+        self.config.pop("station_index", None)
         save_config(self.config)
 
-        self.refresh_stations(force=True)
+        self.refresh_stations(force=True, language=language)
         self._index = 0
         self._persist_station()
         self.play_current()
@@ -160,6 +184,7 @@ class RadioService:
         return self.current_station()
 
     def get_status(self):
+        self._reload_stations_if_needed()
         station = self.current_station()
         playback = player.get_playback_state()
         state = playback.get("state") or "stop"
@@ -173,12 +198,13 @@ class RadioService:
             "volume": self.config["volume"],
             "mpc_volume": playback.get("volume"),
             "state": state,
-            "language": self.config["language"],
+            "language": self._stations_language,
             "index": self._index,
             "station_count": len(self._stations),
         }
 
     def get_metadata(self):
+        self._reload_stations_if_needed()
         station = self.current_station()
         playback = player.get_playback_state()
         return {
