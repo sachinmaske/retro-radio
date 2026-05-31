@@ -2,6 +2,7 @@ from stations import get_stations
 from radio import Radio
 from config import load_config, save_config
 from player import (
+    set_volume,
     status,
     toggle,
     volume_up,
@@ -14,9 +15,6 @@ config = load_config()
 language = config["language"]
 stations = get_stations(language)
 radio = Radio(stations, config)
-print("\nLoaded configuration:")
-print(config)
-
 set_volume(config["volume"])
 radio.play_current()
 
@@ -39,12 +37,18 @@ while True:
 
     elif cmd == "+":
         volume_up()
-        config["volume"] += 5
+        config["volume"] = min(
+            100,
+            config["volume"] + 5
+        )
         save_config(config)
 
     elif cmd == "-":
         volume_down()
-        config["volume"] -= 5
+        config["volume"] = max(
+            0,
+            config["volume"] - 5
+        )   
         save_config(config)
 
     elif cmd == "s":
