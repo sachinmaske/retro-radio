@@ -10,6 +10,7 @@ from player import (
 )
 from favorites import add_favorite
 from favorites import load_favorites
+from player import stop
 
 config = load_config()
 language = config["language"]
@@ -70,6 +71,9 @@ while True:
         print()
         for station in favs[language]:
             print(station["name"])
+
+    elif cmd == "x":
+        stop()
 
     elif cmd == "q":
         break
