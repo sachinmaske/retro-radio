@@ -1,5 +1,6 @@
 {
   "language": "marathi",
-  "station_index": 2,
-  "volume": 130
+  "station_url": "https://air.pc.cdn.bitgravity.com/air/live/pbaudio063/playlist.m3u8",
+  "station_uuid": "1b118e06-bec2-404e-88e7-a5927cb6a4fc",
+  "volume": 70
 }

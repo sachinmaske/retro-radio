@@ -1,14 +1,19 @@
-from radio_controller import RadioController
-from player import set_volume
+import os
 import time
 
-radio = RadioController()
+from radio import get_service
+from radio.pi import setup_gpio, start_display_loop
 
-set_volume(
-    radio.config["volume"]
-)
+service = get_service()
+service.apply_saved_volume()
+service.play_current(announce=True)
 
-radio.play_current()
+gpio_handles = setup_gpio(service)
+display_thread = start_display_loop(service)
+
+print("Retro Radio service running.")
+print("GPIO:", os.environ.get("RADIO_GPIO_ENABLED", "off"))
+print("Display:", os.environ.get("RADIO_DISPLAY_ENABLED", "off"))
 
 while True:
     time.sleep(60)

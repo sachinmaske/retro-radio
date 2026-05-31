@@ -1,0 +1,174 @@
+from radio import player
+from radio.stations import get_stations
+from radio.storage import (
+    add_favorite,
+    clamp_volume,
+    load_config,
+    load_favorites,
+    remove_favorite,
+    save_config,
+)
+
+VOLUME_STEP = 5
+_service = None
+
+
+def get_service():
+    global _service
+    if _service is None:
+        _service = RadioService()
+    return _service
+
+
+class RadioService:
+    def __init__(self):
+        self.config = load_config()
+        self._stations = []
+        self._index = 0
+        self.refresh_stations()
+        self._resolve_current_index()
+
+    def refresh_stations(self, force=False):
+        self._stations = get_stations(self.config["language"], force_refresh=force)
+        if not self._stations:
+            raise RuntimeError(
+                f"No stations for language '{self.config['language']}'"
+            )
+
+    def _resolve_current_index(self):
+        uuid = self.config.get("station_uuid") or ""
+        url = self.config.get("station_url") or ""
+
+        for i, s in enumerate(self._stations):
+            if uuid and s.get("stationuuid") == uuid:
+                self._index = i
+                self._persist_station()
+                return
+        for i, s in enumerate(self._stations):
+            if url and s["url"] == url:
+                self._index = i
+                self._persist_station()
+                return
+
+        legacy = self.config.get("station_index")
+        if isinstance(legacy, int) and 0 <= legacy < len(self._stations):
+            self._index = legacy
+        else:
+            self._index = 0
+        self._persist_station()
+
+    def _persist_station(self):
+        s = self.current_station()
+        self.config["station_url"] = s["url"]
+        self.config["station_uuid"] = s.get("stationuuid") or ""
+        self.config.pop("station_index", None)
+        save_config(self.config)
+
+    def current_station(self):
+        return self._stations[self._index]
+
+    def play_current(self, announce=False):
+        station = self.current_station()
+        if announce:
+            print(f"\n{'=' * 40}\nPlaying: {station['name']}\n{'=' * 40}\n")
+        player.play(station["url"])
+        self._persist_station()
+
+    def next(self):
+        self._index = (self._index + 1) % len(self._stations)
+        self._persist_station()
+        self.play_current()
+
+    def previous(self):
+        self._index = (self._index - 1) % len(self._stations)
+        self._persist_station()
+        self.play_current()
+
+    def apply_saved_volume(self):
+        player.set_volume(self.config["volume"])
+
+    def _sync_volume(self, step):
+        player.volume_up(step) if step > 0 else player.volume_down(-step)
+        reported = player.get_playback_state().get("volume")
+        if reported is not None:
+            self.config["volume"] = clamp_volume(reported)
+        else:
+            delta = step if step > 0 else step
+            self.config["volume"] = clamp_volume(self.config["volume"] + delta)
+        save_config(self.config)
+        return self.config["volume"]
+
+    def volume_up(self, step=VOLUME_STEP):
+        return self._sync_volume(step)
+
+    def volume_down(self, step=VOLUME_STEP):
+        return self._sync_volume(-step)
+
+    def toggle_playback(self):
+        player.toggle()
+
+    def stop_playback(self):
+        player.stop()
+
+    def print_status(self):
+        print(f"\nCurrent station:\n{self.current_station()['name']}")
+        player.print_status()
+
+    def add_current_favorite(self):
+        add_favorite(self.config["language"], self.current_station())
+        return self.current_station()
+
+    def list_favorites(self):
+        return load_favorites().get(self.config["language"], [])
+
+    def remove_favorite_by_url(self, url):
+        return remove_favorite(self.config["language"], url)
+
+    def play_favorite(self, url):
+        for i, s in enumerate(self._stations):
+            if s["url"] == url:
+                self._index = i
+                self._persist_station()
+                self.play_current()
+                return s
+        self.config["station_url"] = url
+        self.config["station_uuid"] = ""
+        save_config(self.config)
+        player.play(url)
+        self.refresh_stations()
+        self._resolve_current_index()
+        return self.current_station()
+
+    def get_status(self):
+        station = self.current_station()
+        playback = player.get_playback_state()
+        state = playback.get("state") or "stop"
+        return {
+            "station": station,
+            "stream": {
+                "title": playback.get("title") or "",
+                "artist": playback.get("artist") or "",
+                "state": state,
+            },
+            "volume": self.config["volume"],
+            "mpc_volume": playback.get("volume"),
+            "state": state,
+            "language": self.config["language"],
+            "index": self._index,
+            "station_count": len(self._stations),
+        }
+
+    def get_metadata(self):
+        station = self.current_station()
+        playback = player.get_playback_state()
+        return {
+            "station": station,
+            "stream": {
+                "title": playback.get("title") or "",
+                "artist": playback.get("artist") or "",
+                "state": playback.get("state") or "stop",
+            },
+            "language": self.config["language"],
+            "index": self._index,
+            "station_count": len(self._stations),
+        }

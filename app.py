@@ -1,83 +1,55 @@
-from stations import get_stations
-from radio import Radio
-from config import load_config, save_config
-from player import (
-    set_volume,
-    status,
-    toggle,
-    volume_up,
-    volume_down
-)
-from favorites import add_favorite
-from favorites import load_favorites
-from player import stop
-import radio_state
+from radio import get_service
 
-config = load_config()
-language = config["language"]
-stations = get_stations(language)
-radio = Radio(stations, config)
-set_volume(config["volume"])
-radio.play_current()
-
-radio_state.radio = radio
-radio_state.config = config
+service = get_service()
+service.apply_saved_volume()
+service.play_current(announce=True)
 
 while True:
-
     cmd = input(
-        "\n[n]ext [p]rev [t]oggle [+]volup [-]voldown [s]tatus [f]avorite current [v]iew favorites [q]uit : "
-    ).lower()
+        "\n[n]ext [p]rev [t]oggle [x]stop [+]vol [−]vol "
+        "[s]tatus [f]avorite [v]iew favorites [r]efresh stations [q]uit : "
+    ).lower().strip()
 
-    if cmd == "n":
-        save_config(config)
-        radio.next()
+    if cmd in ("n", "next"):
+        service.next()
+        print("Playing:", service.current_station()["name"])
 
-    elif cmd == "p":
-        save_config(config)    
-        radio.previous()
+    elif cmd in ("p", "prev"):
+        service.previous()
+        print("Playing:", service.current_station()["name"])
 
-    elif cmd == "t":
-        toggle()
+    elif cmd in ("t", "toggle"):
+        service.toggle_playback()
 
-    elif cmd == "+":
-        volume_up()
-        config["volume"] = min(
-            100,
-            config["volume"] + 5
-        )
-        save_config(config)
+    elif cmd in ("+", "volup"):
+        vol = service.volume_up()
+        print(f"Volume: {vol}")
 
-    elif cmd == "-":
-        volume_down()
-        config["volume"] = max(
-            0,
-            config["volume"] - 5
-        )   
-        save_config(config)
+    elif cmd in ("-", "voldown"):
+        vol = service.volume_down()
+        print(f"Volume: {vol}")
 
-    elif cmd == "s":
-        station = radio.current_station()
-        print()
-        print("Current station:")
-        print(station["name"])
-        status()
+    elif cmd in ("s", "status"):
+        service.print_status()
 
-    elif cmd == "f":
-        station = stations[radio.current]
-        add_favorite(language, station)
+    elif cmd in ("f", "favorite"):
+        station = service.add_current_favorite()
         print()
         print("Added to favorites:")
         print(station["name"])
 
-    elif cmd == "v":
-        favs = load_favorites()
+    elif cmd in ("v", "favorites"):
         print()
-        for station in favs[language]:
+        for station in service.list_favorites():
             print(station["name"])
 
-    elif cmd == "x":
-        stop()
+    elif cmd in ("x", "stop"):
+        service.stop_playback()
 
-    elif cmd == "q":
+    elif cmd in ("r", "refresh"):
+        service.refresh_stations(force=True)
+        service._resolve_current_index()
+        service.play_current(announce=True)
+
+    elif cmd in ("q", "quit"):
         break

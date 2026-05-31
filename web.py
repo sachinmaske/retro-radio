@@ -1,71 +1,129 @@
-from flask import Flask, redirect
-from flask import jsonify
-from radio_service import current_station
-from radio_controller import RadioController
-from player import (
-    volume_up,
-    volume_down
-)
+from flask import Flask, jsonify, redirect, render_template, request, url_for
+
+from radio import get_service
 
 app = Flask(__name__)
+service = get_service()
 
-radio = RadioController()
-
-@app.route("/api/status")
-def status():
-
-    station = current_station()
-
-    return jsonify({
-        "station": station["name"]
-    })
 
 @app.route("/")
 def home():
+    return render_template("index.html")
 
-    station = current_station()
 
-    return f"""
-    <h1>Retro Radio</h1>
+@app.route("/api/status")
+def api_status():
+    return jsonify(service.get_status())
 
-    <h2>{station['name']}</h2>
 
-    <a href="/prev">Previous</a>
-    <br><br>
+@app.route("/api/metadata")
+def api_metadata():
+    return jsonify(service.get_metadata())
 
-    <a href="/next">Next</a>
-    """
 
+@app.route("/api/next", methods=["POST", "GET"])
+def api_next():
+    service.next()
+    return jsonify(service.get_status())
+
+
+@app.route("/api/prev", methods=["POST", "GET"])
+def api_prev():
+    service.previous()
+    return jsonify(service.get_status())
+
+
+@app.route("/api/toggle", methods=["POST"])
+def api_toggle():
+    service.toggle_playback()
+    return jsonify(service.get_status())
+
+
+@app.route("/api/stop", methods=["POST"])
+def api_stop():
+    service.stop_playback()
+    return jsonify(service.get_status())
+
+
+@app.route("/api/volume/up", methods=["POST", "GET"])
+def api_volume_up():
+    service.volume_up()
+    return jsonify(service.get_status())
+
+
+@app.route("/api/volume/down", methods=["POST", "GET"])
+def api_volume_down():
+    service.volume_down()
+    return jsonify(service.get_status())
+
+
+@app.route("/api/favorites", methods=["GET", "POST", "DELETE"])
+def api_favorites():
+    if request.method == "GET":
+        return jsonify({
+            "language": service.config["language"],
+            "favorites": service.list_favorites(),
+        })
+
+    if request.method == "POST":
+        station = service.add_current_favorite()
+        return jsonify({
+            "added": True,
+            "station": station,
+            "favorites": service.list_favorites(),
+        })
+
+    url = request.args.get("url", "")
+    if not url:
+        return jsonify({"error": "url required"}), 400
+    removed = service.remove_favorite_by_url(url)
+    return jsonify({
+        "removed": removed,
+        "favorites": service.list_favorites(),
+    })
+
+
+@app.route("/api/favorites/play", methods=["POST"])
+def api_favorites_play():
+    data = request.get_json(silent=True) or {}
+    url = data.get("url") or request.args.get("url", "")
+    if not url:
+        return jsonify({"error": "url required"}), 400
+    station = service.play_favorite(url)
+    return jsonify(service.get_status() | {"played": station})
+
+
+@app.route("/api/refresh-stations", methods=["POST"])
+def api_refresh_stations():
+    service.refresh_stations(force=True)
+    service._resolve_current_index()
+    return jsonify(service.get_status())
+
+
+# Legacy redirect routes
 @app.route("/next")
-def next_station():
+def legacy_next():
+    service.next()
+    return redirect(url_for("home"))
 
-    radio.next()
-
-    return redirect("/")
 
 @app.route("/prev")
-def prev_station():
+def legacy_prev():
+    service.previous()
+    return redirect(url_for("home"))
 
-    radio.previous()
-
-    return redirect("/")
 
 @app.route("/volumeup")
-def volume_up_route():
+def legacy_volume_up():
+    service.volume_up()
+    return redirect(url_for("home"))
 
-    volume_up()
-
-    return redirect("/")
 
 @app.route("/volumedown")
-def volume_down_route():
+def legacy_volume_down():
+    service.volume_down()
+    return redirect(url_for("home"))
 
-    volume_down()
-
-    return redirect("/")
 
 if __name__ == "__main__":
-    app.run(
-        host="0.0.0.0",
-        port=5000
-    )
+    app.run(host="0.0.0.0", port=5000)

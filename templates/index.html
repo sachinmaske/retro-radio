@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Retro Radio</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="radio">
+    <header class="radio__header">
+      <p class="radio__label">Now playing</p>
+      <h1 id="station-name" class="radio__station">—</h1>
+      <p id="stream-meta" class="radio__meta"></p>
+      <div id="state-badge" class="badge badge--stop">stopped</div>
+    </header>
+
+    <section class="radio__info">
+      <div class="info-row">
+        <span>Volume</span>
+        <strong id="volume">—</strong>
+      </div>
+      <div class="info-row">
+        <span>Country</span>
+        <strong id="country">—</strong>
+      </div>
+      <div class="info-row">
+        <span>Codec</span>
+        <strong id="codec">—</strong>
+      </div>
+      <div class="info-row">
+        <span>Station</span>
+        <strong id="station-index">—</strong>
+      </div>
+    </section>
+
+    <section class="controls">
+      <button type="button" id="btn-prev" class="btn">◀ Prev</button>
+      <button type="button" id="btn-toggle" class="btn btn--primary">⏯</button>
+      <button type="button" id="btn-next" class="btn">Next ▶</button>
+    </section>
+
+    <section class="controls controls--volume">
+      <button type="button" id="btn-vol-down" class="btn">−</button>
+      <span class="volume-label">Volume</span>
+      <button type="button" id="btn-vol-up" class="btn">+</button>
+    </section>
+
+    <section class="favorites">
+      <div class="favorites__header">
+        <h2>Favorites</h2>
+        <button type="button" id="btn-fav-add" class="btn btn--small">★ Save current</button>
+      </div>
+      <ul id="favorites-list" class="favorites__list"></ul>
+    </section>
+  </main>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
