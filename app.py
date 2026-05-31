@@ -6,8 +6,8 @@ service.play_current(announce=True)
 
 while True:
     cmd = input(
-        "\n[n]ext [p]rev [t]oggle [x]stop [+]vol [−]vol "
-        "[s]tatus [f]avorite [v]iew favorites [r]efresh stations [q]uit : "
+        "\n[n]ext [p]rev [t]oggle [x]stop [+]vol [-]vol "
+        "[s]tatus [f]av [v]iew favs [l]anguage [r]efresh [q]uit : "
     ).lower().strip()
 
     if cmd in ("n", "next"):
@@ -50,6 +50,15 @@ while True:
         service.refresh_stations(force=True)
         service._resolve_current_index()
         service.play_current(announce=True)
+
+    elif cmd in ("l", "language", "lang"):
+        print(f"Current language: {service.config['language']}")
+        print("Examples:", ", ".join(service.available_languages()))
+        lang = input("New language: ").strip().lower()
+        if lang:
+            service.set_language(lang)
+            print("Language:", lang)
+            print("Playing:", service.current_station()["name"])
 
     elif cmd in ("q", "quit"):
         break

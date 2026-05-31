@@ -41,6 +41,22 @@ Edit `config.json`:
 
 On first run, the current station is resolved from `station_uuid`, then `station_url`, then legacy `station_index`, then defaults to the first cached station.
 
+## Change language
+
+**Config file** — edit `config.json` and restart:
+
+```json
+{ "language": "hindi", ... }
+```
+
+**CLI** — press `l`, enter a language (e.g. `hindi`, `marathi`, `english`).
+
+**Web UI** — use the Language dropdown and click Apply.
+
+**API** — `POST /api/language` with JSON `{"language": "tamil"}`.
+
+Changing language reloads the station list and starts the first station in that language.
+
 ## Run modes
 
 ### CLI
@@ -51,21 +67,41 @@ python app.py
 
 Keys: `n`/`p` next/prev, `t` toggle, `x` stop, `+`/`-` volume, `s` status, `f` favorite, `v` list favorites, `r` refresh station list, `q` quit.
 
-### Web UI
+### Default service (radio + web + optional GPIO/display)
+
+The normal Pi setup starts playback, web UI, and optional hardware in **one process**:
+
+```bash
+cp radio.env.example radio.env   # optional: tune display/GPIO/web port
+./start_radio.sh
+# or
+python service_mode.py
+```
+
+Then open **`http://<pi-ip>:5000/`** on your phone or laptop.
+
+Web is **on by default** (`RADIO_WEB_ENABLED=1`). To disable:
+
+```bash
+export RADIO_WEB_ENABLED=0
+python service_mode.py
+```
+
+Environment variables:
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `RADIO_WEB_ENABLED` | `1` | Start web UI with service |
+| `RADIO_WEB_HOST` | `0.0.0.0` | Listen address |
+| `RADIO_WEB_PORT` | `5000` | HTTP port |
+
+### Web UI only (no auto-play service)
 
 ```bash
 python web.py
 ```
 
-Open `http://<host>:5000/` — retro-styled UI with live status polling, volume, favorites, and stream metadata.
-
-### Headless service
-
-```bash
-python service_mode.py
-# or
-RETRO_RADIO_DIR="$(pwd)" ./start_radio.sh
-```
+Use this for development on a Mac/PC without MPD service mode.
 
 ## API
 
@@ -79,6 +115,8 @@ RETRO_RADIO_DIR="$(pwd)" ./start_radio.sh
 | GET/POST/DELETE | `/api/favorites` | List / add current / remove (`?url=`) |
 | POST | `/api/favorites/play` | JSON body `{ "url": "..." }` |
 | POST | `/api/refresh-stations` | Force refresh Radio Browser cache |
+| GET | `/api/languages` | Suggested language list + current |
+| POST | `/api/language` | JSON `{"language": "hindi"}` — switch language |
 
 Legacy redirects: `/next`, `/prev`, `/volumeup`, `/volumedown`.
 
@@ -102,16 +140,42 @@ export RADIO_GPIO_ENABLED=1
 python service_mode.py
 ```
 
-### TFT / OLED display
+### OLED / TFT display
+
+The physical display only runs with **`service_mode.py`** (not `app.py` or `web.py`).
+
+```bash
+cp radio.env.example radio.env   # set RADIO_DISPLAY_ENABLED=1
+pip install -r requirements-pi.txt
+./start_radio.sh
+```
+
+Or manually:
 
 ```bash
 export RADIO_DISPLAY_ENABLED=1
+export RADIO_DISPLAY_TYPE=ssd1306    # I2C OLED (most common)
+# export RADIO_DISPLAY_TYPE=st7735   # SPI TFT hat
 export DISPLAY_I2C_ADDRESS=0x3C
-export RADIO_DISPLAY_INTERVAL=2
 python service_mode.py
 ```
 
-Without hardware, the display falls back to console logging.
+**Test the display:**
+
+```bash
+export RADIO_DISPLAY_ENABLED=1
+python -m radio.pi
+```
+
+**If the OLED stays blank:**
+
+1. Enable I2C: `sudo raspi-config` → Interface Options → I2C
+2. Install tools: `sudo apt install i2c-tools`
+3. Scan bus: `i2cdetect -y 1` — you should see `3c` (try `0x3D` if not)
+4. Add user to i2c group: `sudo usermod -aG i2c $USER` then log out/in
+5. Confirm `requirements-pi.txt` is installed in your venv
+
+Without hardware or on failure, output goes to the console as `[display] ...` lines.
 
 ## systemd example
 
@@ -125,6 +189,7 @@ User=radio
 WorkingDirectory=/home/radio/retro-radio
 Environment=RADIO_GPIO_ENABLED=1
 Environment=RADIO_DISPLAY_ENABLED=1
+EnvironmentFile=-/home/radio/retro-radio/radio.env
 ExecStart=/home/radio/retro-radio/.venv/bin/python service_mode.py
 Restart=on-failure
 

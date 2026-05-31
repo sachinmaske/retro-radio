@@ -90,6 +90,29 @@ body {
   color: #fff;
 }
 
+.language {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.language label {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.language__select {
+  flex: 1;
+  min-width: 6rem;
+  background: #352a1e;
+  color: var(--text);
+  border: 2px solid var(--accent-dim);
+  border-radius: 8px;
+  padding: 0.4rem;
+}
+
 .radio__info {
   background: rgba(0, 0, 0, 0.2);
   border-radius: 10px;

@@ -12,7 +12,8 @@ DEFAULT_CONFIG = {
     "volume": 70,
 }
 
-LANGUAGES = ("hindi", "marathi", "english")
+# Common Radio Browser language tags; any string works via set_language().
+LANGUAGES = ("hindi", "marathi", "english", "tamil", "telugu", "bengali", "kannada")
 VOLUME_MIN = 0
 VOLUME_MAX = 100
 

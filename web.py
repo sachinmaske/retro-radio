@@ -1,9 +1,42 @@
+import os
+import threading
+
 from flask import Flask, jsonify, redirect, render_template, request, url_for
 
 from radio import get_service
 
 app = Flask(__name__)
 service = get_service()
+
+
+def web_enabled():
+    value = os.environ.get("RADIO_WEB_ENABLED", "1").lower()
+    return value not in ("0", "false", "no", "off")
+
+
+def start_web_server(background=True):
+    """Start Flask. background=True runs in a daemon thread (for service_mode)."""
+    host = os.environ.get("RADIO_WEB_HOST", "0.0.0.0")
+    port = int(os.environ.get("RADIO_WEB_PORT", "5000"))
+
+    def run():
+        # use_reloader=False — required when not in main thread; saves RAM on Pi
+        app.run(
+            host=host,
+            port=port,
+            threaded=True,
+            use_reloader=False,
+        )
+
+    if background:
+        thread = threading.Thread(target=run, daemon=True, name="radio-web")
+        thread.start()
+        print(f"Web UI: http://{host}:{port}/")
+        return thread
+
+    print(f"Web UI: http://{host}:{port}/")
+    run()
+    return None
 
 
 @app.route("/")
@@ -100,6 +133,29 @@ def api_refresh_stations():
     return jsonify(service.get_status())
 
 
+@app.route("/api/languages", methods=["GET"])
+def api_languages():
+    return jsonify({
+        "current": service.config["language"],
+        "languages": service.available_languages(),
+    })
+
+
+@app.route("/api/language", methods=["POST"])
+def api_set_language():
+    data = request.get_json(silent=True) or {}
+    language = (data.get("language") or request.args.get("language", "")).strip()
+    if not language:
+        return jsonify({"error": "language required"}), 400
+    try:
+        status = service.set_language(language)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except RuntimeError as exc:
+        return jsonify({"error": str(exc)}), 502
+    return jsonify(status)
+
+
 # Legacy redirect routes
 @app.route("/next")
 def legacy_next():
@@ -126,4 +182,4 @@ def legacy_volume_down():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    start_web_server(background=False)

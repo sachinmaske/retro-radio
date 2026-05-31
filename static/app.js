@@ -100,6 +100,26 @@ function renderFavorites(favorites) {
   }
 }
 
+async function loadLanguages(current) {
+  const data = await api("/api/languages");
+  const select = document.getElementById("language-select");
+  select.innerHTML = "";
+  const langs = data.languages || [];
+  const cur = current || data.current;
+  if (cur && !langs.includes(cur)) {
+    langs.unshift(cur);
+  }
+  for (const lang of langs) {
+    const opt = document.createElement("option");
+    opt.value = lang;
+    opt.textContent = lang;
+    if (lang === cur) {
+      opt.selected = true;
+    }
+    select.appendChild(opt);
+  }
+}
+
 async function refresh() {
   const [status, favs] = await Promise.all([
     api("/api/status"),
@@ -107,6 +127,7 @@ async function refresh() {
   ]);
   renderStatus(status);
   renderFavorites(favs.favorites || []);
+  await loadLanguages(status.language);
 }
 
 document.getElementById("btn-prev").addEventListener("click", async () => {
@@ -136,6 +157,16 @@ document.getElementById("btn-vol-down").addEventListener("click", async () => {
 
 document.getElementById("btn-fav-add").addEventListener("click", async () => {
   await api("/api/favorites", { method: "POST" });
+  await refresh();
+});
+
+document.getElementById("btn-language").addEventListener("click", async () => {
+  const language = document.getElementById("language-select").value;
+  await api("/api/language", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ language }),
+  });
   await refresh();
 });
 

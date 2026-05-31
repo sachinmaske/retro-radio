@@ -1,6 +1,7 @@
 from radio import player
 from radio.stations import get_stations
 from radio.storage import (
+    LANGUAGES,
     add_favorite,
     clamp_volume,
     load_config,
@@ -123,6 +124,25 @@ class RadioService:
 
     def remove_favorite_by_url(self, url):
         return remove_favorite(self.config["language"], url)
+
+    def set_language(self, language):
+        language = (language or "").strip().lower()
+        if not language:
+            raise ValueError("language is required")
+
+        self.config["language"] = language
+        self.config["station_url"] = ""
+        self.config["station_uuid"] = ""
+        save_config(self.config)
+
+        self.refresh_stations(force=True)
+        self._index = 0
+        self._persist_station()
+        self.play_current()
+        return self.get_status()
+
+    def available_languages(self):
+        return list(LANGUAGES)
 
     def play_favorite(self, url):
         for i, s in enumerate(self._stations):
