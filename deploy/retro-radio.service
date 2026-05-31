@@ -1,0 +1,16 @@
+[Unit]
+Description=Retro Radio Appliance
+After=network-online.target sound.target mpd.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=radio
+WorkingDirectory=/home/radio/retro-radio
+EnvironmentFile=-/home/radio/retro-radio/radio.env
+ExecStart=/home/radio/retro-radio/.venv/bin/python service_mode.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

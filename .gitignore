@@ -1,6 +1,8 @@
 venv/
+.venv/
 __pycache__/
 *.pyc
 *.pyo
 *.log
 .cache/
+stations_cache/

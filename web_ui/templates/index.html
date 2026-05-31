@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Retro Radio</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="radio">
+    <header class="radio__header">
+      <img id="station-logo" class="radio__logo" alt="" hidden>
+      <p class="radio__label">Now playing</p>
+      <h1 id="station-name" class="radio__station">—</h1>
+      <p id="stream-meta" class="radio__meta"></p>
+      <div id="state-badge" class="badge badge--stop">stopped</div>
+    </header>
+
+    <section class="tabs" role="tablist">
+      <button type="button" id="tab-all" class="tab tab--active" data-mode="all">All stations</button>
+      <button type="button" id="tab-favorites" class="tab" data-mode="favorites">Favorites only</button>
+    </section>
+
+    <section class="language">
+      <label for="language-select">Language</label>
+      <select id="language-select" class="language__select" aria-label="Station language"></select>
+      <p id="language-status" class="language__status">Loading…</p>
+    </section>
+
+    <section class="sleep">
+      <label for="sleep-minutes">Sleep timer (min)</label>
+      <div class="sleep__row">
+        <input id="sleep-minutes" class="sleep__input" type="number" min="0" max="480" value="0" inputmode="numeric">
+        <button type="button" id="btn-sleep-set" class="btn btn--small">Set</button>
+        <button type="button" id="btn-sleep-clear" class="btn btn--small">Off</button>
+      </div>
+      <p id="sleep-status" class="sleep__status"></p>
+    </section>
+
+    <section class="radio__info">
+      <div class="info-row">
+        <span>Volume</span>
+        <strong id="volume">—</strong>
+      </div>
+      <div class="info-row">
+        <span>Mode</span>
+        <strong id="browse-mode">—</strong>
+      </div>
+      <div class="info-row">
+        <span>Station</span>
+        <strong id="station-index">—</strong>
+      </div>
+    </section>
+
+    <section class="controls controls--main">
+      <button type="button" id="btn-prev" class="btn btn--touch">◀</button>
+      <button type="button" id="btn-toggle" class="btn btn--primary btn--touch">⏯</button>
+      <button type="button" id="btn-next" class="btn btn--touch">▶</button>
+    </section>
+
+    <section class="controls controls--volume">
+      <button type="button" id="btn-vol-down" class="btn btn--touch">−</button>
+      <span class="volume-label">Volume</span>
+      <button type="button" id="btn-vol-up" class="btn btn--touch">+</button>
+    </section>
+
+    <section class="favorites">
+      <div class="favorites__header">
+        <h2>Favorites</h2>
+        <button type="button" id="btn-fav-add" class="btn btn--small">★ Save</button>
+      </div>
+      <ul id="favorites-list" class="favorites__list"></ul>
+    </section>
+  </main>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

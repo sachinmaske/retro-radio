@@ -1,4 +1,17 @@
 #!/bin/bash
-cd /home/radio/retro-radio
-source venv/bin/activate
+# Start retro-radio in headless service mode.
+# Override paths: RETRO_RADIO_DIR, RETRO_RADIO_VENV
+
+REPO_DIR="${RETRO_RADIO_DIR:-/home/radio/retro-radio}"
+VENV_NAME="${RETRO_RADIO_VENV:-.venv}"
+
+if [ -f radio.env ]; then
+  set -a
+  # shellcheck source=/dev/null
+  source radio.env
+  set +a
+fi
+
+# shellcheck source=/dev/null
+source "$VENV_NAME/bin/activate"
 python service_mode.py

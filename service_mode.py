@@ -1,14 +1,5 @@
-from radio_controller import RadioController
-from player import set_volume
-import time
+"""Appliance mode — run on Raspberry Pi at boot (Phase 8)."""
+from radio.appliance import run_appliance
 
-radio = RadioController()
-
-set_volume(
-    radio.config["volume"]
-)
-
-radio.play_current()
-
-while True:
-    time.sleep(60)
+if __name__ == "__main__":
+    run_appliance()
