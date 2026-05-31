@@ -17,5 +17,10 @@ def volume_up():
 def volume_down():
     subprocess.run(["mpc", "volume", "-5"])
 
+def set_volume(volume):
+    subprocess.run(
+        ["mpc", "volume", str(volume)]
+    )
+
 def status():
     subprocess.run(["mpc"])

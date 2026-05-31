@@ -1,3 +1,4 @@
+import config
 from player import play
 
 class Radio:
@@ -21,12 +22,20 @@ class Radio:
     def current_station(self):
         return self.stations[self.current]
 
+    def set_station(self, index):
+        self.current = index
+        self.play_current()
+
     def next(self):
         self.current = (self.current + 1) % len(self.stations)
         self.config["station_index"] = self.current
         self.play_current()
+        config["station_index"] = self.current
+        config.save_config(config)
 
     def previous(self):
         self.current = (self.current - 1) % len(self.stations)
         self.config["station_index"] = self.current
         self.play_current()
+        config["station_index"] = self.current
+        config.save_config(config)

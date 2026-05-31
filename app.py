@@ -17,6 +17,7 @@ radio = Radio(stations, config)
 print("\nLoaded configuration:")
 print(config)
 
+set_volume(config["volume"])
 radio.play_current()
 
 while True:
