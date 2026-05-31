@@ -1,12 +1,17 @@
 from flask import Flask, redirect
+from radio_state import radio
 
 app = Flask(__name__)
 
 @app.route("/")
-def home():
-    return """
-    <h1>Retro Radio</h1>
 
+def home():
+    station = "Unknown"
+    if radio:
+        station = radio.current_station()["name"]
+    return f"""
+    <h1>Retro Radio</h1>
+    <h2>{station}</h2>
     <p>
       <a href="/prev">Previous</a>
       |
@@ -16,8 +21,12 @@ def home():
     </p>
     """
 
+
 @app.route("/next")
 def next_station():
+    if radio:
+        radio.next()
+
     return redirect("/")
 
 @app.route("/prev")

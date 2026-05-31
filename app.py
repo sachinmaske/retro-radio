@@ -11,6 +11,7 @@ from player import (
 from favorites import add_favorite
 from favorites import load_favorites
 from player import stop
+import radio_state
 
 config = load_config()
 language = config["language"]
@@ -18,6 +19,9 @@ stations = get_stations(language)
 radio = Radio(stations, config)
 set_volume(config["volume"])
 radio.play_current()
+
+radio_state.radio = radio
+radio_state.config = config
 
 while True:
 
