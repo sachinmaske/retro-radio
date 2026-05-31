@@ -1,4 +1,5 @@
 from flask import Flask, redirect
+from flask import jsonify
 
 from radio_controller import RadioController
 from player import (
@@ -10,25 +11,29 @@ app = Flask(__name__)
 
 radio = RadioController()
 
+@app.route("/api/status")
+def status():
+
+    station = current_station()
+
+    return jsonify({
+        "station": station["name"]
+    })
+
 @app.route("/")
 def home():
 
-    station = radio.current_station()
+    station = current_station()
 
     return f"""
     <h1>Retro Radio</h1>
 
     <h2>{station['name']}</h2>
 
-    <p>
-      <a href="/prev">Previous</a>
-      |
-      <a href="/next">Next</a>
-      |
-      <a href="/volumeup">Vol+</a>
-      |
-      <a href="/volumedown">Vol-</a>
-    </p>
+    <a href="/prev">Previous</a>
+    <br><br>
+
+    <a href="/next">Next</a>
     """
 
 @app.route("/next")
@@ -59,5 +64,8 @@ def volume_down_route():
 
     return redirect("/")
 
-if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+if __name__ == "__main__":
+    app.run(
+        host="0.0.0.0",
+        port=5000
+    )
